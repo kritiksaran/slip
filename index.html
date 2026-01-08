@@ -22,7 +22,7 @@ body{
   background:var(--bg);
   padding:12px;
 }
-h2,h3{margin:0}
+h2,h3,h4{margin:6px 0}
 
 /* CARD */
 .card{
@@ -44,6 +44,7 @@ button{
   cursor:pointer;
 }
 button.secondary{background:var(--muted)}
+button:disabled{opacity:.6;cursor:not-allowed}
 
 /* FORM */
 label{
@@ -73,11 +74,12 @@ table{
   border-collapse:collapse;
 }
 th,td{
-  padding:10px;
-  border-bottom:1px solid var(--border);
-  font-size:14px;
+  padding:6px 8px;   /* tinggi baris lebih rapat */
+  font-size:12px;    /* font dikecilkan */
+  line-height:1.2;
 }
-th{background:#f9fafb;text-align:left}
+
+th{background:#f9fafb;text-align:center}
 
 /* MODAL */
 .modal{
@@ -101,13 +103,18 @@ th{background:#f9fafb;text-align:left}
 }
 
 /* SLIP */
-#slip{
-  width:10.5cm;
-  border:2px solid #000;
-  padding:10px;
-  font-family:"Times New Roman";
-  font-size:12px;
+#slip table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:11px;   /* kecil & elegan */
+  line-height:1.2;
 }
+
+#slip td{
+  padding:2px 4px;  /* super rapat */
+  vertical-align:top;
+}
+
 hr{border:0;border-top:1px solid #000}
 </style>
 </head>
@@ -125,7 +132,7 @@ hr{border:0;border-top:1px solid #000}
   </div>
 </div>
 
-<!-- TABLE -->
+<!-- TABLE DATA -->
 <div class="card">
 <table>
 <thead>
@@ -173,7 +180,8 @@ hr{border:0;border-top:1px solid #000}
 <div id="potBox"></div>
 <button onclick="addPot()">+ Potongan</button>
 
-<button onclick="simpan()">Simpan</button>
+<br><br>
+<button id="btnSimpan" onclick="simpan()">Simpan</button>
 <button class="secondary" onclick="closeInput()">Tutup</button>
 </div>
 </div>
@@ -182,6 +190,7 @@ hr{border:0;border-top:1px solid #000}
 <div class="modal" id="prevM">
 <div class="box">
 <div id="slip"></div>
+<br>
 <button onclick="download()">Unduh JPEG</button>
 <button class="secondary" onclick="closePrev()">Tutup</button>
 </div>
@@ -192,15 +201,17 @@ hr{border:0;border-top:1px solid #000}
 const API_URL = "https://script.google.com/macros/s/AKfycbxXD3RqaTs_ZsR79m5RAyhsHls81ELyUV-aTbbWYDKOso0ArLTspQb7vC5EvgTuVPTdPQ/exec";
 const TTD_URL = "https://upload.wikimedia.org/wikipedia/commons/0/04/Tanda_tangan_bapak.png";
 
-/* DATA JABATAN → TIM */
+/* DATA */
 const DATA_TIM = {
-  Admin: ["Alpha","Beta"],
-  Editor: ["Gamma","Delta"],
+  Admin: ["Sila","Devita","Lia","Firda","Intan","Fahim","Isti"],
+  Editor: ["Ainul","Novian","Rosad","Budi"],
+  Mahar:[""]
 };
 
 let DATA=[], CUR=null;
+let IS_SAVING=false;
 
-/* FORMAT TANGGAL (04/01/2026) */
+/* FORMAT TANGGAL */
 function fmt(v){
   const d=new Date(v);
   return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
@@ -212,52 +223,43 @@ const closeInput=()=>inputM.classList.remove("active");
 const openPrev=()=>prevM.classList.add("active");
 const closePrev=()=>prevM.classList.remove("active");
 
-/* INIT JABATAN & TIM */
-jabatan.innerHTML =
-  `<option value="">Pilih Jabatan</option>` +
+/* INIT JABATAN */
+jabatan.innerHTML='<option value="">Pilih Jabatan</option>'+
   Object.keys(DATA_TIM).map(j=>`<option>${j}</option>`).join("");
 
 jabatan.onchange=()=>{
-  const j=jabatan.value;
-  nama_tim.innerHTML = j
-    ? DATA_TIM[j].map(t=>`<option>${t}</option>`).join("")
+  nama_tim.innerHTML = DATA_TIM[jabatan.value]
+    ? DATA_TIM[jabatan.value].map(t=>`<option>${t}</option>`).join("")
     : "";
 };
 
 /* BONUS & POTONGAN */
 function addBonus(){
   bonusBox.insertAdjacentHTML("beforeend",
-    `<div class="grid">
-      <input placeholder="Keterangan">
-      <input type="number" placeholder="Nilai">
-    </div>`);
+  `<div class="grid">
+    <input placeholder="Keterangan">
+    <input type="number" placeholder="Nilai">
+  </div>`);
 }
 function addPot(){
   potBox.insertAdjacentHTML("beforeend",
-    `<div class="grid">
-      <input placeholder="Keterangan">
-      <input type="number" placeholder="Nilai">
-    </div>`);
+  `<div class="grid">
+    <input placeholder="Keterangan">
+    <input type="number" placeholder="Nilai">
+  </div>`);
 }
 
-/* LOAD DATA */
-fetch(API_URL)
-.then(r=>r.json())
-.then(d=>{
-  DATA=d;
-  render(DATA);
-
+/* LOAD */
+fetch(API_URL).then(r=>r.json()).then(d=>{
+  DATA=d; render(DATA);
   const p=[...new Set(d.map(x=>x.periode))];
-  filter.innerHTML='<option value="">Semua Periode</option>'+
-    p.map(x=>`<option>${x}</option>`).join("");
+  filter.innerHTML='<option value="">Semua Periode</option>'+p.map(x=>`<option>${x}</option>`).join("");
 });
 
 /* FILTER */
-filter.onchange=()=>{
-  render(filter.value?DATA.filter(d=>d.periode===filter.value):DATA);
-};
+filter.onchange=()=>render(filter.value?DATA.filter(d=>d.periode===filter.value):DATA);
 
-/* RENDER TABLE */
+/* RENDER */
 function render(arr){
   tbody.innerHTML="";
   arr.forEach(d=>{
@@ -271,17 +273,24 @@ function render(arr){
   });
 }
 
-/* SIMPAN */
+/* SIMPAN (ANTI SPAM) */
 function simpan(){
+  if(IS_SAVING) return;
+  IS_SAVING=true;
+
+  btnSimpan.disabled=true;
+  btnSimpan.textContent="Menyimpan...";
+
   const bonus=[...bonusBox.children].map(b=>({
     ket:b.children[0].value,
-    nilai:+b.children[1].value
+    nilai:+b.children[1].value||0
   }));
   const potongan=[...potBox.children].map(p=>({
     ket:p.children[0].value,
-    nilai:+p.children[1].value
+    nilai:+p.children[1].value||0
   }));
-  const total=
+
+  const total =
     +gaji.value + +makan.value + +transport.value +
     bonus.reduce((a,b)=>a+b.nilai,0) -
     potongan.reduce((a,b)=>a+b.nilai,0);
@@ -298,61 +307,109 @@ function simpan(){
       transport:+transport.value,
       bonus,potongan,total
     })
-  }).then(()=>location.reload());
+  })
+  .then(r=>r.json())
+  .then(()=>{
+    closeInput();
+    return fetch(API_URL).then(r=>r.json());
+  })
+  .then(d=>{
+    DATA=d;
+    render(DATA);
+  })
+  .finally(()=>{
+    IS_SAVING=false;
+    btnSimpan.disabled=false;
+    btnSimpan.textContent="Simpan";
+  });
 }
 
 /* PREVIEW */
 function preview(d){
   CUR=d;
   slip.innerHTML=`
-  <b style="display:block;text-align:center">SLIP GAJI</b>
-  Tanggal : (${fmt(d.tanggal)})<br>
-  Tim : ${d.nama_tim}<br>
-  Jabatan : ${d.jabatan}
-  <hr>
-  Gaji Pokok : Rp ${d.gaji_pokok.toLocaleString("id-ID")}<br>
-  Uang Makan : Rp ${d.uang_makan.toLocaleString("id-ID")}<br>
-  Transport : Rp ${d.transport.toLocaleString("id-ID")}<br>
-  ${d.bonus.map(b=>`${b.ket} : Rp ${b.nilai.toLocaleString("id-ID")}`).join("<br>")}
-  <hr>
-  ${d.potongan.map(p=>`${p.ket} : -Rp ${p.nilai.toLocaleString("id-ID")}`).join("<br>")}
-  <hr>
-  <b>Total : Rp ${d.total.toLocaleString("id-ID")}</b>
-  <br><br>
-  <div style="text-align:center">
-    Disetujui oleh<br><br>
-    <img src="${TTD_URL}" style="height:60px"><br>
-    <b>Pimpinan</b>
-  </div>`;
-  openPrev();
-}
+<b style="display:block;text-align:center">SLIP GAJI TIM</b>
+<b style="display:block;text-align:center">OFFICIAL CERITA CINTA</b>
+<b style="display:block;text-align:center">Dsn. Temboro Ds. Plaosan, Kec. Wates - Kediri</b>
+<hr>
 
-/* DOWNLOAD */
-/* FORMAT TANGGAL (04-01-2026) */
-function formatTanggal(v){
-  const d = new Date(v);
-  const tgl = String(d.getDate()).padStart(2,"0");
-  const bln = String(d.getMonth()+1).padStart(2,"0");
-  const thn = d.getFullYear();
-  return `${tgl}-${bln}-${thn}`;
+<table style="font-size:12px">
+<tr><td>Nama</td><td>: ${d.nama_tim}</td><td>Tanggal</td><td>: ${fmt(d.tanggal)}</td></tr>
+<tr><td>Jabatan</td><td>: ${d.jabatan}</td><td>Periode</td><td>: ${d.periode}</td></tr>
+</table>
+
+<hr>
+
+<table style="width:100%">
+<tr>
+<td width="50%" valign="top">
+<b><u>A. Pendapatan</u></b>
+<table>
+<tr><td>Gaji Pokok</td><td align="right">Rp ${d.gaji_pokok.toLocaleString("id-ID")}</td></tr>
+<tr><td>Uang Makan</td><td align="right">Rp ${d.uang_makan.toLocaleString("id-ID")}</td></tr>
+<tr><td>Transport</td><td align="right">Rp ${d.transport.toLocaleString("id-ID")}</td></tr>
+${d.bonus.map(b=>`
+<tr><td>${b.ket}</td><td align="right">Rp ${b.nilai.toLocaleString("id-ID")}</td></tr>
+`).join("")}
+</table>
+</td>
+
+<td width="50%" valign="top">
+<b><u>B. Pemotongan</u></b>
+<table>
+${d.potongan.length
+? d.potongan.map(p=>`
+<tr><td>${p.ket}</td><td align="right">-Rp ${p.nilai.toLocaleString("id-ID")}</td></tr>
+`).join("")
+: `<tr><td colspan="2">-</td></tr>`}
+</table>
+</td>
+</tr>
+</table>
+
+<hr>
+<h5><b>TOTAL (A - B): Rp ${d.total.toLocaleString("id-ID")}</b></h5>
+<h5><b>TAKE HOME PAY (v)</b></h5>
+<table style="font-size:12px;">
+  <tr>
+    <td>Di transfer ke :<br></td>
+    <td colspan="2"></td>
+    <td style:"text-align:center">Disetujui oleh :</td>
+    <td style:"text-align:center">Penerima :</br>
+  </tr>
+  <tr>
+    <td>Nama Bank : </td>
+    <td colspan="2"></td>
+    <td rowspan="2" style:"text-align:center"><img src="${TTD_URL}" style="height:60px"></td>
+  </tr>
+  <tr>
+    <td>Atas Nama : </td>
+    <td colspan="2"></td>
+  </tr>
+  <tr>
+    <td>Nomor Rekening : </td>
+    <td colspan="2"></td>
+    <td style:"text-align:center;"><b>Pimpinan</b></td>
+    <td style:"text-align:center;">${d.nama_tim}</td>
+  </tr>
+</table>
+`;
+openPrev();
 }
 
 /* DOWNLOAD */
 function download(){
-  const namaFile =
-    formatTanggal(CUR.tanggal) + "_" +
-    CUR.jabatan + "_" +
-    CUR.nama_tim + ".jpg";
+const d=new Date(CUR.tanggal);
+const namaFile=
+`${String(d.getDate()).padStart(2,"0")}-${String(d.getMonth()+1).padStart(2,"0")}-${d.getFullYear()}_${CUR.nama_tim}.jpg`;
 
-  html2canvas(slip,{scale:3}).then(c=>{
-    const a=document.createElement("a");
-    a.href = c.toDataURL("image/jpeg");
-    a.download = namaFile;
-    a.click();
-  });
+html2canvas(slip,{scale:3}).then(c=>{
+const a=document.createElement("a");
+a.href=c.toDataURL("image/jpeg");
+a.download=namaFile;
+a.click();
+});
 }
-
 </script>
-
 </body>
 </html>
